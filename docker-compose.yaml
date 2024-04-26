@@ -1,4 +1,4 @@
-version: "3.0"
+version: "3.8"
 
 
 services:
@@ -12,12 +12,23 @@ services:
     container_name: bot-container
     environment:
       PYTHONUNBUFFERED: 1
+      MISTRAL_API_KEY: /run/secrets/api_mistral
+      QDRANT_API_KEY:  /run/secrets/api_qdrant
+      DISCORD_API_KEY: /run/secrets/api_discord
     build:
       context: .
     ports:
       - 80:80
     networks:
       - net
+
+secrets:
+   api_mistral:
+     file: api_mistral.txt
+   api_qdrant:
+     file: api_qdrant.txt
+   api_discord:
+     file: api_discord.txt
 
 networks:
   net:

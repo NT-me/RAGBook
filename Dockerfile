@@ -4,6 +4,7 @@ WORKDIR /app
 COPY ./requirements.txt ./requirements.txt
 COPY ./discord_interface.py ./discord_interface.py
 COPY ./prompt ./prompt
+COPY *.txt .
 
 RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 

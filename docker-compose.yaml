@@ -2,12 +2,6 @@ version: "3.8"
 
 
 services:
-  fpm:
-    build:
-      context: .
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
   bot:
     container_name: bot-container
     environment:
@@ -15,6 +9,10 @@ services:
       MISTRAL_API_KEY: /run/secrets/api_mistral
       QDRANT_API_KEY:  /run/secrets/api_qdrant
       DISCORD_API_KEY: /run/secrets/api_discord
+    secrets:
+      - api_mistral
+      - api_qdrant
+      - api_discord
     build:
       context: .
     ports:
@@ -24,11 +22,11 @@ services:
 
 secrets:
    api_mistral:
-     file: api_mistral.txt
+     file: ./api_mistral.txt
    api_qdrant:
-     file: api_qdrant.txt
+     file: ./api_qdrant.txt
    api_discord:
-     file: api_discord.txt
+     file: ./api_discord.txt
 
 networks:
   net:

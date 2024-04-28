@@ -6,6 +6,7 @@ COPY ./discord_interface.py ./discord_interface.py
 COPY ./prompt ./prompt
 COPY *.txt .
 
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 
 CMD ["python", "discord_interface.py"]

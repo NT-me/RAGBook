@@ -22,11 +22,11 @@ services:
 
 secrets:
    api_mistral:
-     file: ./app/api_mistral.txt
+     file: api_mistral.txt
    api_qdrant:
-     file: ./app/api_qdrant.txt
+     file: api_qdrant.txt
    api_discord:
-     file: ./app/api_discord.txt
+     file: api_discord.txt
 
 networks:
   net:

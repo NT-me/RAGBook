@@ -48,7 +48,7 @@ async def on_message(message):
 
         qdrant_search = client_qdrant.search(
             collection_name="contents_text",
-            limit=10,
+            limit=50,
             query_vector=embed_msg
         )
 

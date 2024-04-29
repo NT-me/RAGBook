@@ -99,7 +99,7 @@ async def on_message(message):
             accu_resp = []
             for chunk in stream_response:
                 content = chunk.choices[0].delta.content
-                if "\n" in content or len("".join(accu_resp)) >= 500:
+                if "\n" in content or len("".join(accu_resp)) >= 1500:
                     await message.channel.send("".join(accu_resp))
                     accu_resp.clear()
                 accu_resp.append(content)

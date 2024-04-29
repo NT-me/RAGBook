@@ -1,8 +1,9 @@
 # This example requires the 'message_content' intent.
 import os
+from zlib import adler32
 
 import discord
-from discord import Embed
+from discord import Embed, Message
 from dotenv import load_dotenv
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
@@ -41,57 +42,77 @@ async def on_message(message):
         return
 
     if message.content.startswith('$rag'):
-        message_without_command = message.content.replace("$rag", "")
-        embed_msg = MODEL.encode(message_without_command, show_progress_bar=True)
+        async with message.channel.typing():
+            message_without_command = message.content.replace("$rag", "")
+            embed_msg = MODEL.encode(message_without_command, show_progress_bar=True)
 
-        template_message = open("prompt/client_discord/user.txt", "r", encoding="utf-8").read()
+            template_message = open("prompt/client_discord/user.txt", "r", encoding="utf-8").read()
 
-        qdrant_search = client_qdrant.search(
-            collection_name="contents_text",
-            limit=50,
-            query_vector=embed_msg
-        )
-
-        filtered_qs = [x for x in qdrant_search if x.score > 0.5]
-
-        sources = []
-        for i, point in enumerate(filtered_qs):
-            e = point.payload
-            local_e = Embed(
-                title=f"Source #{i} - {e['title']}",
-                description=f"""
-                Score {point.score}
-                """
+            qdrant_search = client_qdrant.search(
+                collection_name="contents_text",
+                limit=50,
+                query_vector=embed_msg
             )
-            max_line = (int(e["original_indice"]) * 10) + 10
-            local_e.add_field(
-                name="Approximative line number",
-                value=f"{int(e["original_indice"]) * 10} - {max_line}"
-            )
-            local_e.add_field(
-                name="Texte propre",
-                value=e["clean_text"][:50] + "..."
-            )
-            local_e.add_field(
-                name="Texte original",
-                value=e["orginal_text"][:50] + "..."
-            )
-            sources.append(local_e)
 
-        clean_texts = [str({"clean_text": x.payload.get("clean_text"), "title of book": x.payload.get("title")}) for x
-                       in filtered_qs]
-        template_message = template_message.replace("{retrieved_chunk}", "\n".join(clean_texts))
-        question_message = template_message.replace("{question}", message_without_command)
+            filtered_qs = [x for x in qdrant_search if x.score > 0.5]
 
-        chat_response = client_mistral.chat(
-            model=model,
-            messages=[ChatMessage(role="system", content=system_message),
-                      ChatMessage(role="user", content=question_message)],
-            temperature=0
-        )
+            sources = []
+            for i, point in enumerate(filtered_qs):
+                e = point.payload
+                local_e = Embed(
+                    title=f"Source #{i} - {e['title']}",
+                    description=f"""
+                    Score {point.score}
+                    """,
+                    color=adler32(e['title'].encode("utf-8")) % 16777215
+                )
+                max_line = (int(e["original_indice"]) * 10) + 10
+                local_e.add_field(
+                    name="Approximative line number",
+                    value=f"{int(e["original_indice"]) * 10} - {max_line}"
+                )
+                local_e.add_field(
+                    name="Texte propre",
+                    value=e["clean_text"][:200] + "..."
+                )
+                local_e.add_field(
+                    name="Texte original",
+                    value=e["orginal_text"][:200] + "..."
+                )
+                sources.append(local_e)
 
-        resp = chat_response.choices[0].message.content
-        await message.channel.send(resp, embeds=sources[:10])
+            clean_texts = [str({"clean_text": x.payload.get("clean_text"), "title of book": x.payload.get("title")}) for
+                           x
+                           in filtered_qs]
+            template_message = template_message.replace("{retrieved_chunk}", "\n".join(clean_texts))
+            question_message = template_message.replace("{question}", message_without_command)
+
+            # With streaming
+            stream_response = client_mistral.chat_stream(
+                model=model,
+                messages=[
+                    ChatMessage(role="system", content=system_message),
+                    ChatMessage(role="user", content=question_message)
+                ],
+                temperature=0.5)
+
+            accu_resp = []
+            for chunk in stream_response:
+                content = chunk.choices[0].delta.content
+                if "\n" in content or len("".join(accu_resp)) >= 500:
+                    await message.channel.send("".join(accu_resp))
+                    accu_resp.clear()
+                accu_resp.append(content)
+            await message.channel.send("".join(accu_resp))
+            thread_msg = await message.channel.send("Thread pour les sources")
+
+            source_thread = await message.channel.create_thread(
+                name="Source Thread",
+                message=thread_msg
+            )
+
+            for source in sources:
+                await source_thread.send(embed=source)
 
 
 if __name__ == "__main__":

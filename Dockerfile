@@ -4,6 +4,7 @@ WORKDIR /app
 COPY ./requirements.txt ./requirements.txt
 COPY ./discord_interface.py ./discord_interface.py
 COPY ./modules ./modules
+COPY ./helpers ./helpers
 COPY ./prompt ./prompt
 COPY *.txt .
 

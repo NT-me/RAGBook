@@ -3,6 +3,7 @@ FROM python:3.12
 WORKDIR /app
 COPY ./requirements.txt ./requirements.txt
 COPY ./discord_interface.py ./discord_interface.py
+COPY ./modules ./modules
 COPY ./prompt ./prompt
 COPY *.txt .
 

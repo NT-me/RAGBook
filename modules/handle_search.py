@@ -73,22 +73,18 @@ class HandleSearch(Cog):
                             """,
                 color=adler32(e['title'].encode("utf-8")) % 16777215
             )
-            max_line = (int(e["original_indice"]) * 10) + 10
+
             local_e.add_field(
-                name="Approximative line number",
-                value=f"{int(e["original_indice"]) * 10} - {max_line}"
+                name="Approximative page number",
+                value=f"{int(e["page_index"])}"
             )
             local_e.add_field(
-                name="Texte propre",
-                value=e["clean_text"][:200] + "..."
-            )
-            local_e.add_field(
-                name="Texte original",
-                value=e["orginal_text"][:200] + "..."
+                name="Texte d'origine",
+                value=e["original_content"][:200] + "..."
             )
             sources.append(local_e)
 
-        clean_texts = [str({"clean_text": x.payload.get("clean_text"), "title of book": x.payload.get("title")}) for
+        clean_texts = [str({"clean_text": x.payload.get("original_content"), "title of book": x.payload.get("title")}) for
                        x
                        in filtered_qs]
 

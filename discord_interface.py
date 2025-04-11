@@ -1,7 +1,9 @@
 # This example requires the 'message_content' intent.
+import json
 import os
 
 import discord
+import requests
 from discord import Embed
 from dotenv import load_dotenv
 from mistralai.client import MistralClient
@@ -10,7 +12,7 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import models
 
-from constant import QDRANT_URL
+from constant import QDRANT_URL, JINAI_URL, JINAI_HEADERS
 
 load_dotenv()  # take environment variables from .env.
 
@@ -19,7 +21,6 @@ intents.message_content = True
 system_message = open("prompt/client_discord/system.txt", "r", encoding="utf-8").read()
 
 client = discord.Client(intents=intents)
-MODEL = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
 client_qdrant = QdrantClient(
     url=QDRANT_URL,
@@ -31,6 +32,18 @@ model = "open-mixtral-8x22b"
 
 client_mistral = MistralClient(api_key=api_key)
 
+
+def get_query_emb(query: str):
+    data = {
+        "model": "jina-clip-v2",
+        "task": "retrieval.query",
+        "input": [
+            {"text": query},
+        ]
+    }
+    response = requests.post(JINAI_URL, headers=JINAI_HEADERS, data=json.dumps(data))
+    ret = response.json()["data"][0]["embedding"]
+    return ret
 
 @client.event
 async def on_ready():
@@ -44,7 +57,7 @@ async def on_message(message):
 
     if message.content.startswith('$rag'):
         message_without_command = message.content.replace("$rag", "")
-        embed_msg = MODEL.encode(message_without_command, show_progress_bar=True)
+        embed_msg = get_query_emb(message_without_command)
 
         template_message = open("prompt/client_discord/user.txt", "r", encoding="utf-8").read()
 
@@ -68,7 +81,7 @@ async def on_message(message):
             max_line = (int(e["original_indice"]) * 10) + 10
             local_e.add_field(
                 name="Approximative line number",
-                value=f"{int(e["original_indice"]) * 10} - {max_line}"
+                value=f"{int(e['original_indice']) * 10} - {max_line}"
             )
             local_e.add_field(
                 name="Texte propre",

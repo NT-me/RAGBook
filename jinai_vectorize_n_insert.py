@@ -78,7 +78,7 @@ def upsert_points(vec, orginal_text, clean_text, orignal_indice):
     )
 
 
-if __name__ == "__main__":
+def main():
     with open("./data/cry_of_the_nature_wikisource.md", 'r', encoding="utf-8") as f:
         sentences: List[str] = convert_content_to_sentences(f.read())
         sentences_and_embs = vectorize_sentences(sentences=sentences)
@@ -89,3 +89,7 @@ if __name__ == "__main__":
                 fin.write(f'"{s}", {e}\n')
             upsert_points(vec=e, orginal_text=s, clean_text=s, orignal_indice=i)
             i += 1
+
+
+if __name__ == "__main__":
+    main()

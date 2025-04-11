@@ -1,0 +1,8 @@
+Correct the following paragraph according to your instructions.
+Only return the corrected version, keeping the exact structure.
+Do not add, remove, or explain anything. Do not translate.
+Only fix typographic, spelling, punctuation, and casing errors.
+
+```
+{paragraph}
+```

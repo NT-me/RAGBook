@@ -4,9 +4,9 @@ from time import sleep
 from typing import List
 
 from mistralai.client import MistralClient
-from itertools import batched
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
+import datetime
 
 load_dotenv()  # take environment variables from .env.
 
@@ -14,38 +14,38 @@ load_dotenv()  # take environment variables from .env.
 def split_text(text: str) -> List[str]:
     # Split text from the book for every tenth lines
 
-    splitted_text = text.split("\n")
-    unflattened = list(batched(splitted_text, 10))
-    ret = [" ".join(x) for x in unflattened]
+    splitted_text = text.split("\n\n")
+    ret = [x.replace('\n', '') for x in splitted_text]
 
     return ret
 
 
 def main():
     api_key = os.environ["MISTRAL_API_KEY"]
-    model = "open-mistral-7b"
+    model = "ministral-3b-latest"
 
     client = MistralClient(api_key=api_key)
 
     system_message = open("prompt/clean_text/system.txt", "r", encoding="utf-8").read()
+    user_message = open("prompt/clean_text/user.txt", "r", encoding="utf-8").read()
 
-    text_from_book = open(f"data/bim_eighteenth-century_the-cry-of-nature-or-a_oswald-john-miscellane_1791_djvu.txt", "r",
+    text_from_book = open(f"data/bim_eighteenth-century_review-of-the-constituti_oswald-john_1792_djvu.txt", "r",
                           encoding="utf-8").read()
-    start_indice = 445
-    paragraphs = split_text(text_from_book)[start_indice:]
+    output_fn = f"data/{str(datetime.datetime.now().timestamp())}_review_of_constitution.csv"
+    paragraphs = split_text(text_from_book)
 
-    with open("data/output2.csv", "a", encoding="utf-8") as f:
-        fieldnames = ['orginal_indice', 'orginal_batch10', "corrected_text"]
+    with open(output_fn, "a", encoding="utf-8") as f:
+        fieldnames = ['paragraph_indice', 'orginal_paragraph', "corrected_text"]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        #writer.writeheader()
+        writer.writeheader()
 
         for i, p in enumerate(paragraphs):
-            i = i +start_indice
-            print(f"Process {i+1}/{len(paragraphs)+start_indice}")
+            i = i
+            print(f"Process {i+1}/{len(paragraphs)}")
             sleep(1)
             messages = [
                 ChatMessage(role="system", content=system_message),
-                ChatMessage(role="user", content=p)
+                ChatMessage(role="user", content=user_message.replace("{paragraph}", p))
             ]
 
             chat_response = client.chat(
@@ -56,8 +56,9 @@ def main():
             cr = chat_response.choices[0].message.content
             cr = cr.replace("\n", "")
             writer.writerow(
-                {"orginal_indice": i, "orginal_batch10": p, "corrected_text": cr}
+                {"paragraph_indice": i, "orginal_paragraph": p, "corrected_text": cr}
             )
+            print(cr)
 
 
 if __name__ == "__main__":

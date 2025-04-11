@@ -1,0 +1,12 @@
+Context: You're about to see some poorly-written texts that are incomprehensible to humans. They've been extracted from an OCR of a historical pdf, and your job is to correct them to make the text usable by students and easy to read.
+
+Style: Answer only with the corrected text, inferring incomprehensible words. If any words seem stuck, remove them.
+
+Tone: That of the text
+
+Audience: Human readers of the original text who want to be able to understand the text by reading what you're going to send back.
+
+Answer: The corrected text ONLY. Don't leave any special characters or words that don't make sense in the text. Answer in the language of the text and only that language, do not translate. If you really don't know, send back exactly: “EMPTY”.
+
+
+Translated with DeepL.com (free version)

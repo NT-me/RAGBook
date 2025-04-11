@@ -10,6 +10,8 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import models
 
+from constant import QDRANT_URL
+
 load_dotenv()  # take environment variables from .env.
 
 intents = discord.Intents.default()
@@ -20,7 +22,7 @@ client = discord.Client(intents=intents)
 MODEL = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
 client_qdrant = QdrantClient(
-    url="https://ddffeb25-284c-447c-b81c-541719112ac9.us-east4-0.gcp.cloud.qdrant.io",
+    url=QDRANT_URL,
     port=6333,
     api_key=os.getenv("QDRANT_API_KEY"), )
 

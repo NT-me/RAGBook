@@ -1,6 +1,4 @@
 import os
-import re
-import string
 import uuid
 from typing import List
 from dotenv import load_dotenv
@@ -8,13 +6,9 @@ import requests
 from qdrant_client import QdrantClient
 from qdrant_openapi_client.models import models
 
-load_dotenv()
+from constant import JINAI_URL, JINAI_HEADERS, QDRANT_URL
 
-JINAI_URL = 'https://api.jina.ai/v1/embeddings'
-HEADERS = {
-    'Content-Type': 'application/json',
-    'Authorization': os.getenv("JINAI_API_KEY")
-}
+load_dotenv()
 
 
 def convert_content_to_sentences(content: str):
@@ -50,7 +44,7 @@ def vectorize_sentences(
                 }
             ]
         }
-        response = requests.post(JINAI_URL, headers=HEADERS, json=data)
+        response = requests.post(JINAI_URL, headers=JINAI_HEADERS, json=data)
         response.raise_for_status()
         embeddings = response.json().get("data")[0]["embedding"]
         ret.append((sentence, embeddings))
@@ -59,7 +53,7 @@ def vectorize_sentences(
 
 def upsert_points(vec, orginal_text, clean_text, orignal_indice):
     client = QdrantClient(
-        url="https://edb8d98e-72dd-4739-bcb3-c18f368497d5.eu-central-1-0.aws.cloud.qdrant.io",
+        url=QDRANT_URL,
         port=6333,
         api_key=os.getenv("QDRANT_API_KEY"), )
 

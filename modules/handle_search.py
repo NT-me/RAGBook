@@ -9,15 +9,14 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from sentence_transformers import SentenceTransformer
 from qdrant_client.http.models import models
-
+import requests
 from helpers.qdrant_helper import setup_client_qdrant
+from constant import JINAI_URL, JINAI_HEADERS
 
 load_dotenv()  # take environment variables from .env.
 
 system_message = open("prompt/client_discord/system.txt", "r", encoding="utf-8").read()
 template_user_message = open("prompt/client_discord/user.txt", "r", encoding="utf-8").read()
-
-MODEL = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
 client_qdrant = setup_client_qdrant()
 
@@ -28,6 +27,17 @@ client_mistral = MistralClient(api_key=mistral_api_key)
 yaml_key = "Textes actifs"
 
 
+def vectorize_msg(msg_to_vecto: str):
+    data = {
+        "model": "jina-clip-v2",
+        "task": "retrieval.query",
+        "input": [
+            {"text": msg_to_vecto}
+        ]
+    }
+    response = requests.post(JINAI_URL, headers=JINAI_HEADERS, json=data)
+    return response.json().get("data")[0].get("embedding")
+
 class HandleSearch(Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -36,7 +46,7 @@ class HandleSearch(Cog):
     async def rag(self, ctx: Context):
         message = ctx.message
         message_without_command = message.content.replace("$rag", "")
-        embed_msg = MODEL.encode(message_without_command, show_progress_bar=True)
+        embed_msg = vectorize_msg(message_without_command)
 
         current_channel_settings = ctx.channel.topic
         txt_filter = None
@@ -76,7 +86,7 @@ class HandleSearch(Cog):
 
             local_e.add_field(
                 name="Approximative page number",
-                value=f"{int(e["page_index"])}"
+                value=f"{int(e['page_index'])}"
             )
             local_e.add_field(
                 name="Texte d'origine",

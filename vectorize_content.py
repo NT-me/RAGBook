@@ -1,14 +1,18 @@
 import os
 import re
 import string
+from time import sleep
 from typing import List
+
+from dotenv import load_dotenv
+from numpy import ndarray
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import models
 from sentence_transformers import SentenceTransformer
 import uuid
 import csv
 
-sentences = ["This is an example sentence", "Each sentence is converted"]
+from torch import Tensor
 
 MODEL = SentenceTransformer('sentence-transformers/paraphrase-multilingual-mpnet-base-v2')
 
@@ -43,13 +47,18 @@ def vectorize_sentences(
 ):
     ret = []
 
-    for sentence in sentences:
-        embed_sentence = MODEL.encode(sentence, show_progress_bar=True)
-        ret.append((sentence, embed_sentence.reshape(embed_sentence.shape)))
+    for i, sentence in enumerate(sentences):
+        embed_sentence = MODEL.encode(sentence, show_progress_bar=True, device="cpu")
+        upsert_points(
+            vec=[(sentence, embed_sentence.reshape(embed_sentence.shape))],
+            orginal_text="",
+            clean_text="",
+            orignal_indice=i
+        )
     return ret
 
 
-def upsert_points(vec, orginal_text, clean_text, orignal_indice):
+def upsert_points(vec: list[tuple[str, ndarray | Tensor]], orginal_text, clean_text, orignal_indice):
     client = QdrantClient(
         url="https://ddffeb25-284c-447c-b81c-541719112ac9.us-east4-0.gcp.cloud.qdrant.io",
         port=6333,
@@ -60,31 +69,34 @@ def upsert_points(vec, orginal_text, clean_text, orignal_indice):
         model = models.PointStruct(
             id=str(uuid.uuid4()),
             payload={
-                "title": "The cry of nature; or, an appeal to mercy and to justice, on behalf of the persecuted animals.".capitalize(),
-                "orginal_text": orginal_text,
-                "clean_text": clean_text,
+                "title": "La Chronique du mois".capitalize(),
+                "orginal_text": emb[0],
+                "clean_text": emb[0],
                 "original_indice": orignal_indice
             },
             vector=emb[1],
         )
         points.append(model)
+    for i in range(0, 10):
+        try:
+            client.upsert(
+                collection_name="contents_text",
+                points=points,
+                wait=False
+            )
+        except Exception as e:
+            print(f"Exception occurred: {str(e)}")
+            sleep(i * 2)
+        else:
+            break
 
-    client.upsert(
-        collection_name="contents_text",
-        points=points,
-    )
+
+def main():
+    with open("./data/lachroniquedumo00clavgoog_djvu.txt", 'r', encoding="utf-8") as f:
+        sentences = convert_content_to_sentences(f.read())
+        emb_vec: list[tuple[str, ndarray | Tensor]] = vectorize_sentences(sentences)
 
 
 if __name__ == "__main__":
-    with open("./data/output2.csv", 'r', encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row["orginal_batch10"]:
-                sentences = convert_content_to_sentences(row["corrected_text"])
-                emb_vec = vectorize_sentences(sentences)
-                upsert_points(
-                    vec=emb_vec,
-                    orginal_text=row["orginal_batch10"],
-                    clean_text=row["corrected_text"],
-                    orignal_indice=row["orginal_indice"]
-                )
+    load_dotenv()  # take environment variables from .env
+    main()

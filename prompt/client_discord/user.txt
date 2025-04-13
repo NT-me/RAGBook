@@ -2,6 +2,7 @@ Context information is below.
 ---------------------
 {retrieved_chunk}
 ---------------------
-Etant donné les informations contextuelles et sans connaissances préalables, répondre à la requête avec les données dans la clé JSON « clean_text », répondre en français
+Etant donné les informations contextuelles et sans connaissances préalables, répondre à la requête avec les données dans la clé JSON « clean_text », répondre en français.
+Tu dois toujours préciser sur quelle source tu t'appuies à la fin de ta phrase en donnant le numéro de la source sour format `Source #<numéro>`
 Query: {question}
 réponse:

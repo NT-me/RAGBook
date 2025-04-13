@@ -1,4 +1,5 @@
 import os
+from statistics import mean
 from zlib import adler32
 
 import yaml
@@ -38,6 +39,7 @@ def vectorize_msg(msg_to_vecto: str):
     response = requests.post(JINAI_URL, headers=JINAI_HEADERS, json=data)
     return response.json().get("data")[0].get("embedding")
 
+
 class HandleSearch(Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -70,14 +72,19 @@ class HandleSearch(Cog):
             query_vector=embed_msg,
             query_filter=txt_filter
         )
+        scores = [x.score for x in qdrant_search]
+        print(f"Before thresholding there is {len(scores)} hit")
+        print(f"Score max: {max(scores)}, score min: {min(scores)}, score mean: {mean(scores)}")
+        filtered_qs = [x for x in qdrant_search if x.score > 0.3]
 
-        filtered_qs = [x for x in qdrant_search if x.score > 0.5]
+        if len(filtered_qs) <= 0:
+            await message.channel.send(f"Il n'y a pas assez de sources pour répondre. Score moyen trouvé : {mean(scores)}")
 
         sources = []
         for i, point in enumerate(filtered_qs):
             e = point.payload
             local_e = Embed(
-                title=f"Source #{i} - {e['title']}",
+                title=f"Source #{i+1} - {e['title']}",
                 description=f"""
                             Score {point.score}
                             """,
@@ -86,15 +93,15 @@ class HandleSearch(Cog):
 
             local_e.add_field(
                 name="Approximative page number",
-                value=f"{int(e['page_index'])}"
+                value=f"{int(e['original_indice'])}"
             )
             local_e.add_field(
                 name="Texte d'origine",
-                value=e["original_content"][:200] + "..."
+                value=e["orginal_text"][:200] + "..."
             )
             sources.append(local_e)
 
-        clean_texts = [str({"clean_text": x.payload.get("original_content"), "title of book": x.payload.get("title")}) for
+        clean_texts = [str({"clean_text": x.payload.get("orginal_text"), "title of book": x.payload.get("title")}) for
                        x
                        in filtered_qs]
 
@@ -116,10 +123,16 @@ class HandleSearch(Cog):
         accu_resp = []
         for chunk in stream_response:
             content = chunk.choices[0].delta.content
-            if "\n" in content or len("".join(accu_resp)) >= 1500:
-                await message.channel.send("".join(accu_resp))
-                accu_resp.clear()
-            accu_resp.append(content)
+            if content is not None and len(content) > 0:
+                accu_resp.append(content)
+                if "\n" in content or len("".join(accu_resp)) >= 1500:
+                    if accu_resp == "\n":
+                        accu_resp = "----"
+                    try:
+                        await message.channel.send("".join(accu_resp))
+                    except Exception as e:
+                        print(str(e))
+                    accu_resp.clear()
         await message.channel.send("".join(accu_resp))
         thread_msg = await message.channel.send("Thread pour les sources")
 

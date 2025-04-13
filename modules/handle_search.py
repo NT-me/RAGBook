@@ -26,6 +26,7 @@ model = "open-mixtral-8x22b"
 client_mistral = Mistral(api_key=mistral_api_key)
 yaml_key = "Textes actifs"
 
+
 def vectorize_msg(msg_to_vecto: str):
     data = {
         "model": "jina-clip-v2",
@@ -76,13 +77,14 @@ class HandleSearch(Cog):
         filtered_qs = [x for x in qdrant_search if x.score > 0.3]
 
         if len(filtered_qs) <= 0:
-            await message.channel.send(f"Il n'y a pas assez de sources pour répondre. Score moyen trouvé : {mean(scores)}")
+            await message.channel.send(
+                f"Il n'y a pas assez de sources pour répondre. Score moyen trouvé : {mean(scores)}")
 
         sources = []
         for i, point in enumerate(filtered_qs):
             e = point.payload
             local_e = Embed(
-                title=f"Source #{i+1} - {e['title']}",
+                title=f"Source #{i + 1} - {e['title']}",
                 description=f"""
                             Score {point.score}
                             """,
@@ -116,7 +118,7 @@ class HandleSearch(Cog):
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": question_message}
             ],
-            temperature=0.5)
+            temperature=0.1)
 
         accu_resp = []
         for chunk in stream_response:

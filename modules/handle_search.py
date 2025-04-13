@@ -2,17 +2,16 @@ import os
 from statistics import mean
 from zlib import adler32
 
+import requests
 import yaml
 from discord import Embed
 from discord.ext.commands import Context, Cog, command
 from dotenv import load_dotenv
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
-from sentence_transformers import SentenceTransformer
+from mistralai import Mistral
 from qdrant_client.http.models import models
-import requests
-from helpers.qdrant_helper import setup_client_qdrant
+
 from constant import JINAI_URL, JINAI_HEADERS
+from helpers.qdrant_helper import setup_client_qdrant
 
 load_dotenv()  # take environment variables from .env.
 
@@ -24,9 +23,8 @@ client_qdrant = setup_client_qdrant()
 mistral_api_key = os.environ["MISTRAL_API_KEY"]
 model = "open-mixtral-8x22b"
 
-client_mistral = MistralClient(api_key=mistral_api_key)
+client_mistral = Mistral(api_key=mistral_api_key)
 yaml_key = "Textes actifs"
-
 
 def vectorize_msg(msg_to_vecto: str):
     data = {
@@ -112,17 +110,17 @@ class HandleSearch(Cog):
         )
 
         # With streaming
-        stream_response = client_mistral.chat_stream(
+        stream_response = client_mistral.chat.stream(
             model=model,
             messages=[
-                ChatMessage(role="system", content=system_message),
-                ChatMessage(role="user", content=question_message)
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": question_message}
             ],
             temperature=0.5)
 
         accu_resp = []
         for chunk in stream_response:
-            content = chunk.choices[0].delta.content
+            content = chunk.data.choices[0].delta.content
             if content is not None and len(content) > 0:
                 accu_resp.append(content)
                 if "\n" in content or len("".join(accu_resp)) >= 1500:

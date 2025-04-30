@@ -173,3 +173,71 @@ class HandleSearch(Cog):
 
         for source in sources:
             await source_thread.send(embed=source)
+
+    @command()
+    async def search(self, ctx: Context):
+        message = ctx.message
+        message_without_command = message.content.replace("$search", "")
+        embed_msg = vectorize_msg(message_without_command)
+
+        current_channel_settings = ctx.channel.topic
+        txt_filter = None
+        if current_channel_settings is not None and yaml.safe_load(current_channel_settings) is not None:
+            tmp_yaml = yaml.safe_load(current_channel_settings)
+            txt_allowed = tmp_yaml[yaml_key]
+            txt_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="title",
+                        match=models.MatchAny(
+                            any=txt_allowed
+                        ),
+                    )
+                ]
+            )
+
+        qdrant_search = client_qdrant.search(
+            collection_name="contents_text",
+            limit=50,
+            query_vector=embed_msg,
+            query_filter=txt_filter
+        )
+        scores = [x.score for x in qdrant_search]
+        print(f"Before thresholding there is {len(scores)} hit")
+        print(f"Score max: {max(scores)}, score min: {min(scores)}, score mean: {mean(scores)}")
+
+        sources = []
+        for i, point in enumerate(qdrant_search):
+            e = point.payload
+            local_e = Embed(
+                title=f"Source #{i + 1} - {e['title']}",
+                description=f"""
+                            Score {point.score}
+                            """,
+                color=adler32(e['title'].encode("utf-8")) % 16777215
+            )
+
+            local_e.add_field(
+                name="Show ID",
+                value=point.id
+            )
+
+            local_e.add_field(
+                name="Texte d'origine",
+                value=e["orginal_text"][:200] + "..."
+            )
+            sources.append(local_e)
+
+        clean_texts = [str({"clean_text": x.payload.get("orginal_text"), "title of book": x.payload.get("title")}) for
+                       x
+                       in qdrant_search]
+
+        thread_msg = await message.channel.send("Thread pour les résultats de la recherche")
+
+        source_thread = await message.channel.create_thread(
+            name="Results",
+            message=thread_msg
+        )
+
+        for source in sources:
+            await source_thread.send(embed=source)

@@ -55,6 +55,36 @@ class HandleSearch(Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @staticmethod
+    async def qdrant_search_helper(ctx, message_without_command):
+        embed_msg = vectorize_msg(message_without_command)
+        current_channel_settings = ctx.channel.topic
+        txt_filter = None
+        if current_channel_settings is not None and yaml.safe_load(current_channel_settings) is not None:
+            tmp_yaml = yaml.safe_load(current_channel_settings)
+            txt_allowed = tmp_yaml[yaml_key]
+            txt_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="title",
+                        match=models.MatchAny(
+                            any=txt_allowed
+                        ),
+                    )
+                ]
+            )
+        qdrant_search = client_qdrant.search(
+            collection_name="contents_text",
+            limit=50,
+            query_vector=embed_msg,
+            query_filter=txt_filter
+        )
+        scores = [x.score for x in qdrant_search]
+        print(f"Before thresholding there is {len(scores)} hit")
+        print(f"Score max: {max(scores)}, score min: {min(scores)}, score mean: {mean(scores)}")
+        return qdrant_search
+
+
     @command()
     async def show(self, ctx: Context):
         message = ctx.message
@@ -76,38 +106,8 @@ class HandleSearch(Cog):
     async def rag(self, ctx: Context):
         message = ctx.message
         message_without_command = message.content.replace("$rag", "")
-        embed_msg = vectorize_msg(message_without_command)
-
-        current_channel_settings = ctx.channel.topic
-        txt_filter = None
-        if current_channel_settings is not None and yaml.safe_load(current_channel_settings) is not None:
-            tmp_yaml = yaml.safe_load(current_channel_settings)
-            txt_allowed = tmp_yaml[yaml_key]
-            txt_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="title",
-                        match=models.MatchAny(
-                            any=txt_allowed
-                        ),
-                    )
-                ]
-            )
-
-        qdrant_search = client_qdrant.search(
-            collection_name="contents_text",
-            limit=50,
-            query_vector=embed_msg,
-            query_filter=txt_filter
-        )
-        scores = [x.score for x in qdrant_search]
-        print(f"Before thresholding there is {len(scores)} hit")
-        print(f"Score max: {max(scores)}, score min: {min(scores)}, score mean: {mean(scores)}")
+        qdrant_search = await self.qdrant_search_helper(ctx, message_without_command)
         filtered_qs = [x for x in qdrant_search if x.score > 0.3]
-
-        if len(filtered_qs) <= 0:
-            await message.channel.send(
-                f"Il n'y a pas assez de sources pour répondre. Score moyen trouvé : {mean(scores)}")
 
         sources = []
         for i, point in enumerate(filtered_qs):
@@ -178,33 +178,7 @@ class HandleSearch(Cog):
     async def search(self, ctx: Context):
         message = ctx.message
         message_without_command = message.content.replace("$search", "")
-        embed_msg = vectorize_msg(message_without_command)
-
-        current_channel_settings = ctx.channel.topic
-        txt_filter = None
-        if current_channel_settings is not None and yaml.safe_load(current_channel_settings) is not None:
-            tmp_yaml = yaml.safe_load(current_channel_settings)
-            txt_allowed = tmp_yaml[yaml_key]
-            txt_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="title",
-                        match=models.MatchAny(
-                            any=txt_allowed
-                        ),
-                    )
-                ]
-            )
-
-        qdrant_search = client_qdrant.search(
-            collection_name="contents_text",
-            limit=50,
-            query_vector=embed_msg,
-            query_filter=txt_filter
-        )
-        scores = [x.score for x in qdrant_search]
-        print(f"Before thresholding there is {len(scores)} hit")
-        print(f"Score max: {max(scores)}, score min: {min(scores)}, score mean: {mean(scores)}")
+        qdrant_search = await self.qdrant_search_helper(ctx, message_without_command)
 
         sources = []
         for i, point in enumerate(qdrant_search):
@@ -227,10 +201,6 @@ class HandleSearch(Cog):
                 value=e["orginal_text"][:200] + "..."
             )
             sources.append(local_e)
-
-        clean_texts = [str({"clean_text": x.payload.get("orginal_text"), "title of book": x.payload.get("title")}) for
-                       x
-                       in qdrant_search]
 
         thread_msg = await message.channel.send("Thread pour les résultats de la recherche")
 

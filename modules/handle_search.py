@@ -65,7 +65,7 @@ class HandleSearch(Cog):
         )
 
         point = points_which_shouldnt[0]
-        txt = point["orginal_text"]
+        txt = point.payload["orginal_text"]
 
         lines = txt.split("\n")
         for line in lines:

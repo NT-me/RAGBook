@@ -84,7 +84,7 @@ def upsert_points(vec, orginal_text, clean_text, orignal_indice):
         points=[models.PointStruct(
             id=str(uuid.uuid4()),
             payload={
-                "title": "The Cry of Nature".capitalize(),
+                "title": "The British mercury".capitalize(),
                 "orginal_text": orginal_text,
                 "clean_text": clean_text,
                 "original_indice": orignal_indice
@@ -95,18 +95,18 @@ def upsert_points(vec, orginal_text, clean_text, orignal_indice):
 
 
 def main():
-    with open("./data/cry_of_the_nature_wikisource.md", 'r', encoding="utf-8") as f:
+    with open("data/bim_eighteenth-century_the-british-mercury-con_oswald-john_1788_djvu.txt", 'r', encoding="utf-8") as f:
         sentences: List[str] = _split_by_word_respecting_sent_boundary(document_content=f.read())
         print(f"There is {len(sentences)} sentences")
         sentences_and_embs = vectorize_sentences(sentences=sentences)
 
         i = 0
-        for s, e in sentences_and_embs:
-            with open(f"./data/{datetime.now().timestamp()}_embs_backups.csv", 'w') as fin:
+        with open(f"./data/{datetime.now().timestamp()}_embs_backups_roc.csv", 'w') as fin:
+            for s, e in sentences_and_embs:
                 fin.write(f'"{s}", {e}\n')
-            upsert_points(vec=e, orginal_text=s, clean_text=s, orignal_indice=i)
-            i += 1
-            print(f"{i} / {len(sentences_and_embs)}")
+                upsert_points(vec=e, orginal_text=s, clean_text=s, orignal_indice=i)
+                i += 1
+                print(f"{i} / {len(sentences_and_embs)}")
 
 
 if __name__ == "__main__":

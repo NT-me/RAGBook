@@ -8,7 +8,8 @@ from discord import Embed
 from discord.ext.commands import Context, Cog, command
 from dotenv import load_dotenv
 from mistralai import Mistral
-from qdrant_client.http.models import models
+from qdrant_client.http.models import models, Record
+from itertools import islice
 
 from constant import JINAI_URL, JINAI_HEADERS
 from helpers.qdrant_helper import setup_client_qdrant
@@ -27,6 +28,17 @@ client_mistral = Mistral(api_key=mistral_api_key)
 yaml_key = "Textes actifs"
 
 
+def batched(iterable, n, *, strict=False):
+    # batched('ABCDEFG', 3) → ABC DEF G
+    if n < 1:
+        raise ValueError('n must be at least one')
+    iterator = iter(iterable)
+    while batch := tuple(islice(iterator, n)):
+        if strict and len(batch) != n:
+            raise ValueError('batched(): incomplete batch')
+        yield batch
+
+
 def vectorize_msg(msg_to_vecto: str):
     data = {
         "model": "jina-clip-v2",
@@ -42,6 +54,23 @@ def vectorize_msg(msg_to_vecto: str):
 class HandleSearch(Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @command()
+    async def show(self, ctx: Context):
+        message = ctx.message
+        message_without_command = message.content.replace("$show", "").strip()
+        points_which_shouldnt: list[Record] = client_qdrant.retrieve(
+            collection_name="contents_text",
+            ids=[message_without_command],
+        )
+
+        point = points_which_shouldnt[0]
+        txt = point["orginal_text"]
+
+        lines = txt.split("\n")
+        for line in lines:
+            for subline in batched(line, 1500):
+                await message.channel.send("".join(subline))
 
     @command()
     async def rag(self, ctx: Context):
@@ -92,9 +121,10 @@ class HandleSearch(Cog):
             )
 
             local_e.add_field(
-                name="Approximative page number",
-                value=f"{int(e['original_indice'])}"
+                name="Show ID",
+                value=point.id
             )
+
             local_e.add_field(
                 name="Texte d'origine",
                 value=e["orginal_text"][:200] + "..."
